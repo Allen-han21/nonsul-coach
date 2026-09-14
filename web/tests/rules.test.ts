@@ -11,11 +11,11 @@ import {
 } from '../lib/schema';
 
 const normalize = (s: string) => s.replace(/\s/g, '');
-void test('all four humanities packages have genuine, versioned official criterion references', () => {
-  assert.equal(packages.length, 4);
+void test('all six humanities packages have genuine, versioned official criterion references', () => {
+  assert.equal(packages.length, 6);
   assert.deepEqual(
     packages.map((p) => p.kind),
-    ['actual', 'actual', 'mock', 'mock'],
+    ['actual', 'actual', 'mock', 'mock', 'actual', 'actual'],
   );
   for (const p of packages) {
     EvaluationPackageSchema.parse(p);
@@ -32,6 +32,12 @@ void test('all four humanities packages have genuine, versioned official criteri
       'Do not invent an official paragraph count',
     );
     const official = officialFor(p);
+    if (p.id.startsWith('sungshin-2026-2-')) {
+      assert.equal(official.source.session, '2교시');
+      assert.equal(p.source.page, 52);
+      assert.equal(official.passages.length, 4);
+      assert.ok(official.passages[0].text.includes('라부부'));
+    }
     for (const c of p.criteria) {
       assert.ok(
         normalize(official.rubricText).includes(normalize(c.source.quote)),

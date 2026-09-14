@@ -40,6 +40,18 @@ void test('each package supplies the required official passages and relevant com
     const official = officialFor(pkg);
     await analyze({ packageId: pkg.id, answer: '합성 답안' }, pkg, {
       async generate(r) {
+        const reference = JSON.parse(
+          r.instructions.split('공식 자료(신뢰할 수 있는 평가 기준):\n')[1],
+        );
+        const index = pkg.id.endsWith('-1') ? 0 : 1;
+        assert.equal(reference.package.question, official.questions[index]);
+        assert.equal(reference.commentary, official.commentary[index]);
+        assert.equal(reference.rubric, official.rubricText);
+        assert.equal(reference.internalExample, official.examples[index]);
+        assert.deepEqual(
+          reference.passages.map((p: { label: string }) => p.label),
+          pkg.requiredPassages,
+        );
         for (const label of pkg.requiredPassages) {
           const passage = official.passages.find((p) => p.label === label);
           assert.ok(passage?.text);

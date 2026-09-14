@@ -90,6 +90,46 @@ const passageRepairs = [
   ['산출할 수 있다 는', '산출할 수 있다는'],
   ['방향으 로 함께', '방향으로 함께'],
   ['도구로 작 동할', '도구로 작동할'],
+  ['블라인 드 박스', '블라인드 박스'],
+  ['팝 마트', '팝마트'],
+  ['끌 어모으는데', '끌어모으는데'],
+  ['지속 적인 구매', '지속적인 구매'],
+  ['pleasure)이 라는', 'pleasure)이라는'],
+  ['예측 하여', '예측하여'],
+  ['독 특한 브랜드', '독특한 브랜드'],
+  ['이러한 공간 은', '이러한 공간은'],
+  ['다양한 개성 을', '다양한 개성을'],
+  ['수집 욕 구를', '수집 욕구를'],
+  ['밥값이 네’', '밥값이네’'],
+  ['고 립감을', '고립감을'],
+  ['언박 싱 영상', '언박싱 영상'],
+  ['경고한 다.', '경고한다.'],
+  ['과열 양 상이', '과열 양상이'],
+  ['2억 원 에', '2억 원에'],
+  ['다툼 까지', '다툼까지'],
+  ['비교심리를 자극 해', '비교심리를 자극해'],
+  ['제 4 의 생산요소', '제 4의 생산요소'],
+  ['개인 이 자유롭게', '개인이 자유롭게'],
+  ['행복 한 삶', '행복한 삶'],
+  ['아 니라 행복', '아니라 행복'],
+  ['소비자는 합 리적인', '소비자는 합리적인'],
+  ['가져다주 는 이익', '가져다주는 이익'],
+  ['셈이 다.', '셈이다.'],
+  ['중요한 요 인임을', '중요한 요인임을'],
+  ['소비활동은 단 순히', '소비활동은 단순히'],
+  ['행복감 을', '행복감을'],
+  ['항상 긍정 적인', '항상 긍정적인'],
+  ['궁극적으 로', '궁극적으로'],
+  ['또한 세 대별로', '또한 세대별로'],
+  ['세대는 디지 털 플랫폼', '세대는 디지털 플랫폼'],
+  ['확보하여야 하 고,', '확보하여야 하고,'],
+  ['생산활동 을', '생산활동을'],
+  ['도입, 그 리고', '도입, 그리고'],
+  ['사회 환 원을', '사회 환원을'],
+  ['생산요 소의', '생산요소의'],
+  ['납부하 는 것으로도', '납부하는 것으로도'],
+  ['이러 한 점', '이러한 점'],
+  ['한다는 책 임의식을', '한다는 책임의식을'],
 ];
 const passage = (text) =>
   passageRepairs.reduce(
@@ -220,6 +260,75 @@ if (
   result.mock.examples.some((x) => x.length < 800)
 )
   throw new Error('Mock examination extraction failed.');
+// The second humanities session ends before the natural-science section.
+const secondPage = page(52);
+const secondBlocks = [
+  page(50).replace('1. 문항 및 제시문', ''),
+  page(51),
+  secondPage.split('【문제 1】')[0],
+]
+  .join('\n')
+  .split(/\n\s*([가나다라])\s*\n/);
+const secondPassages = [];
+for (let i = 1; i < secondBlocks.length; i += 2)
+  secondPassages.push({
+    label: secondBlocks[i],
+    text: passage(secondBlocks[i + 1]),
+  });
+const secondNotices = noticeList(49);
+const secondCommentary = [
+  page(55).split('4. 문항 해설')[1],
+  page(56),
+  page(57).split('5. 채점 기준')[0],
+].join('\n');
+const secondExamples = [page(59).split('6. 예시 답안')[1], page(60)].join('\n');
+result.actual2 = {
+  source: {
+    ...source,
+    session: '2교시',
+    pages: {
+      instructions: [49],
+      passages: [50, 51, 52],
+      questions: [52],
+      intent: [52],
+      commentary: [55, 56, 57],
+      rubric: [57, 58, 59],
+      examples: [59, 60],
+    },
+  },
+  instructions: { page: 49, notices: secondNotices, directions: [] },
+  passages: secondPassages,
+  // Preserve the doubled closing parenthesis in question 1 of the official PDF.
+  questions: [1, 2].map((n) =>
+    passage(
+      secondPage
+        .split('2. 출제 의도')[0]
+        .split(`【문제 ${n}】`)[1]
+        .split('【문제')[0],
+    ),
+  ),
+  intent: paragraph(secondPage.split('2. 출제 의도')[1]),
+  commentary: [1, 2].map((n) =>
+    paragraph(secondCommentary.split(`【문제 ${n}】`)[1].split('【문제')[0]),
+  ),
+  rubricText: paragraph(
+    page(57).split('5. 채점 기준')[1] +
+      '\n' +
+      page(58) +
+      '\n' +
+      page(59).split('6. 예시 답안')[0],
+  ),
+  examples: [1, 2].map((n) =>
+    paragraph(secondExamples.split(`【문제 ${n}】`)[1].split('【문제')[0]),
+  ),
+};
+if (
+  secondPassages.map((p) => p.label).join('') !== '가나다라' ||
+  secondNotices.join('\n') !== notices.join('\n') ||
+  !result.actual2.examples[0].endsWith('(989자)') ||
+  !result.actual2.examples[1].endsWith('(995자)')
+)
+  throw new Error('Second humanities session extraction failed.');
 mkdirSync(destination.slice(0, destination.lastIndexOf('/')), {
   recursive: true,
 });
@@ -254,6 +363,14 @@ const publicResult = {
     questions: result.mock.questions,
     figure: null,
   },
+  actual2: {
+    label: '2026학년도 논술고사 인문계열(2교시)',
+    pageRange: '49-52',
+    instructions: result.actual2.instructions,
+    passages: secondPassages,
+    questions: result.actual2.questions,
+    figure: null,
+  },
 };
 mkdirSync(publicDestination.slice(0, publicDestination.lastIndexOf('/')), {
   recursive: true,
@@ -265,9 +382,15 @@ console.log(
     serverDestination,
     publicDestination,
     sha256,
-    questions: questions.length + result.mock.questions.length,
-    passages: passages.length + mockPassages.length,
+    questions:
+      questions.length +
+      result.mock.questions.length +
+      result.actual2.questions.length,
+    passages: passages.length + mockPassages.length + secondPassages.length,
     notices: notices.length + mockDirections.length,
-    examples: examples.length + result.mock.examples.length,
+    examples:
+      examples.length +
+      result.mock.examples.length +
+      result.actual2.examples.length,
   }),
 );

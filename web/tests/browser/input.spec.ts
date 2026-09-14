@@ -9,7 +9,7 @@ const mockQuestion1 =
 const mockQuestion2 =
   '생성형 인공지능은 교육 기회를 확대하기도 하지만 새로운 불평등을 만들기도 한다. 제시문 <다>, <라>를 바탕으로 이러한 양면성의 구체적 양상을 분석하고, 이에 대한 자신의 견해를 논하시오. (800-1000자)';
 
-test('four humanities questions show their official materials and keep only the answer editable', async ({
+test('six humanities questions show their official materials and keep only the answer editable', async ({
   page,
 }, info) => {
   const errors: string[] = [];
@@ -33,7 +33,7 @@ test('four humanities questions show their official materials and keep only the 
     page.getByRole('button', { name: '분석하기', exact: true }),
   ).toBeInViewport();
   await expect(page.getByLabel('기출 연도·문항').locator('option')).toHaveCount(
-    4,
+    6,
   );
   await expect(page.locator('.official-question')).toContainText(
     actualQuestion1,
@@ -69,6 +69,20 @@ test('four humanities questions show their official materials and keep only the 
   await page.getByLabel('기출 연도·문항').selectOption('sungshin-2026-1-2');
   await expect(page.locator('.official-question')).toContainText(
     actualQuestion2,
+  );
+  await page.getByLabel('기출 연도·문항').selectOption('sungshin-2026-2-1');
+  await expect(page.locator('.official-question')).toContainText(
+    '제시문 <다>를 토대로 제시문 <가>에 나타난 현상을 소비자의 심리적 역설의 측면으로 설명하시오. (900±100자))',
+  );
+  await expect(page.locator('.passage')).toHaveCount(4);
+  await expect(page.locator('.passage').first()).toContainText('라부부');
+  await expect(page.locator('.passage figure')).toHaveCount(0);
+  await expect(page.getByLabel('학생 답안', { exact: true })).toHaveValue(
+    '검증용 답안입니다.',
+  );
+  await page.getByLabel('기출 연도·문항').selectOption('sungshin-2026-2-2');
+  await expect(page.locator('.official-question')).toContainText(
+    '제시문 <가>에 나타난 팝마트의 판매전략을 제시문 <나>와 <라>에 각각 근거하여 평가하시오. (900±100자)',
   );
   await page.getByLabel('기출 연도·문항').selectOption('sungshin-2027-mock-1');
   await expect(

@@ -197,7 +197,7 @@ void test('official material cannot be replaced by answer instructions, and revi
   assert.ok(result.diagnoses.every((f) => f.status === '확인 필요'));
   assert.ok(!JSON.stringify(result).includes('private upstream error'));
 });
-void test('all four packages can be revised using the same version, with no prior answer sent to provider', async () => {
+void test('all six packages can be revised using the same version, with no prior answer sent to provider', async () => {
   for (const p of packages) {
     let previous = '';
     for (const text of ['첫 번째 합성 답안', '두 번째 합성 수정 답안']) {

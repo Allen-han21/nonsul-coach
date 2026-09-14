@@ -48,6 +48,32 @@ const choices = [
     questionIndex: 1,
   },
   {
+    id: 'sungshin-2026-2-1',
+    label: '2026 기출 · 2교시 문제 1',
+    topic: '라부부 소비와 심리적 역설',
+    pages: '52 · 55–58 · 59–60',
+    tasks: [
+      '소비활동의 긍정적·부정적 효과',
+      '라부부 문화에 나타난 심리적 역설',
+      '제시문 적용과 논리적 연결',
+    ],
+    exam: 'actual2' as const,
+    questionIndex: 0,
+  },
+  {
+    id: 'sungshin-2026-2-2',
+    label: '2026 기출 · 2교시 문제 2',
+    topic: '팝마트 판매전략과 기업의 책임',
+    pages: '52 · 56–57 · 59–60',
+    tasks: [
+      '세 가지 판매전략과 소비자 행동',
+      '기업가정신과 자유주의적 정의관',
+      '기업윤리와 공동체주의적 정의관',
+    ],
+    exam: 'actual2' as const,
+    questionIndex: 1,
+  },
+  {
     id: 'sungshin-2027-mock-1',
     label: '2027 모의논술 · 문제 1',
     topic: '생성형 AI 시대, 교육은 왜 필요한가',
@@ -258,18 +284,22 @@ export default function Home() {
                     }}
                   >
                     <NativeSelectOptGroup label="2026학년도 실제 기출">
-                      {choices.slice(0, 2).map((c) => (
-                        <NativeSelectOption key={c.id} value={c.id}>
-                          {c.label}
-                        </NativeSelectOption>
-                      ))}
+                      {choices
+                        .filter((c) => c.exam !== 'mock')
+                        .map((c) => (
+                          <NativeSelectOption key={c.id} value={c.id}>
+                            {c.label}
+                          </NativeSelectOption>
+                        ))}
                     </NativeSelectOptGroup>
                     <NativeSelectOptGroup label="2027학년도 모의논술">
-                      {choices.slice(2).map((c) => (
-                        <NativeSelectOption key={c.id} value={c.id}>
-                          {c.label}
-                        </NativeSelectOption>
-                      ))}
+                      {choices
+                        .filter((c) => c.exam === 'mock')
+                        .map((c) => (
+                          <NativeSelectOption key={c.id} value={c.id}>
+                            {c.label}
+                          </NativeSelectOption>
+                        ))}
                     </NativeSelectOptGroup>
                   </NativeSelect>
                 </div>

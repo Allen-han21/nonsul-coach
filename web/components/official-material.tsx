@@ -1,7 +1,7 @@
 import content from '@/lib/question-content.json';
 import Image from 'next/image';
 
-type ExamKey = 'actual' | 'mock';
+type ExamKey = 'actual' | 'actual2' | 'mock';
 
 export function OfficialMaterial({
   exam,

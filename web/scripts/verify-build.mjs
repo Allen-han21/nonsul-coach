@@ -28,18 +28,26 @@ assert.deepEqual(
 );
 assert.deepEqual(Object.keys(publicQuestions).sort(), [
   'actual',
+  'actual2',
   'mock',
   'source',
 ]);
 assert.deepEqual(publicQuestions.actual.instructions, official.instructions);
 assert.deepEqual(publicQuestions.actual.passages, official.passages);
 assert.deepEqual(publicQuestions.actual.questions, official.questions);
+assert.deepEqual(
+  publicQuestions.actual2.instructions,
+  official.actual2.instructions,
+);
+assert.deepEqual(publicQuestions.actual2.passages, official.actual2.passages);
+assert.deepEqual(publicQuestions.actual2.questions, official.actual2.questions);
 assert.deepEqual(publicQuestions.mock.instructions, official.mock.instructions);
 assert.deepEqual(publicQuestions.mock.passages, official.mock.passages);
 assert.deepEqual(publicQuestions.mock.questions, official.mock.questions);
 for (const internalKey of ['examples', 'rubricText', 'commentary', 'intent'])
   assert.ok(
     !Object.hasOwn(publicQuestions.actual, internalKey) &&
+      !Object.hasOwn(publicQuestions.actual2, internalKey) &&
       !Object.hasOwn(publicQuestions.mock, internalKey),
     'Internal key ' + internalKey + ' must not be exposed as question content',
   );
@@ -56,7 +64,11 @@ const contents = (
   )
 ).join('\n');
 const compact = (value) => value.normalize('NFC').replace(/\s/g, '');
-for (const example of [...official.examples, ...official.mock.examples]) {
+for (const example of [
+  ...official.examples,
+  ...official.actual2.examples,
+  ...official.mock.examples,
+]) {
   assert.ok(
     !compact(contents).includes(compact(example).slice(0, 70)),
     'Official example leaked into the browser bundle',

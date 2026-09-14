@@ -8,6 +8,8 @@ export const StatusSchema = z.enum([
 export const PackageIdSchema = z.enum([
   'sungshin-2026-1-1',
   'sungshin-2026-1-2',
+  'sungshin-2026-2-1',
+  'sungshin-2026-2-2',
   'sungshin-2027-mock-1',
   'sungshin-2027-mock-2',
 ]);
