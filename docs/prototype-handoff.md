@@ -5,8 +5,8 @@ base_commit: 05eedf8
 approval: approved
 current_step: 7
 status: awaiting_required_input
-next_action: "AI 제공자·모델·비저장 조건을 확인해 실제 분석을 검증하고, Sites 배포용 Git 예외 승인 후 8단계 진행"
-document_commit_policy: local_commits_only_no_push
+next_action: "OpenAI Developers 키 관리 연결 및 제공자·모델·비저장 조건을 확정해 실제 AI 검증"
+document_commit_policy: local_commits_and_sites_source_push_approved
 ---
 
 # nonsul-coach 프로토타입 구현 Handoff
@@ -16,7 +16,7 @@ document_commit_policy: local_commits_only_no_push
 ## 승인과 제약
 
 - 사용자가 1~8단계 구현, 의존성 설치, 로컬 검증, Sites 제한 공유 배포를 승인했다.
-- 사용자가 현재 기준 소스를 자연스러운 단위로 나눈 로컬 커밋으로 남기도록 허용했다. 푸시·PR 생성은 계속 금지되어 있다. 기준 커밋 `05eedf8`은 변하지 않았으며 이후 작업은 main의 로컬 커밋으로 보존한다.
+- 사용자가 로컬 커밋에 이어 Sites 배포용 소스 커밋·푸시를 승인했다. 웹 앱만 별도 Sites 저장소로 전송하며 상위 GitHub 저장소 푸시·PR 생성은 요청 범위가 아니다. 구현 변경은 main의 로컬 커밋으로 보존한다.
 - 대학과 가이드는 사용자 제공 자료만 사용한다. 성신여자대학교 인문계열만 지원한다.
 - 2026학년도 인문 1교시 2문항과 추가 요청한 2027학년도 인문 모의 2문항, 총 4문항이다.
 - 학생용 한 화면. 학생 정보·답안·AI 요청/응답·분석 이력을 저장하거나 로그로 남기지 않는다.
@@ -34,7 +34,7 @@ document_commit_policy: local_commits_only_no_push
 | 5. AI 분석·재검증 | local_pass | 후보→독립 재검토→정확한 원문 인용·정식 출처 재검증. 합성 제공자로 완료 기준 확인. 실제 모델 연결 미완료. |
 | 6. 피드백·재분석 화면 | local_pass | 한 화면에 기준별 진단·우선 과제 최대 3개·근거 선택·출처·수정 질문/행동·재분석. 데스크톱/모바일 합성 왕복 통과. |
 | 7. 품질·안전성 | local_pass_live_pending | [검증 기록](prototype-verification.md). 테스트 22개, 화면 테스트 8개, 타입·린트·빌드·클라이언트 노출 검사 통과. 실제 AI와 교육적 유효성은 미검증. |
-| 8. 배포·최종 확인 | not_started | AI 연결과 비저장 조건 확인, Git 금지 예외 결정 필요. 아직 Sites 생성·업로드·배포 없음. |
+| 8. 배포·최종 확인 | deployed_ai_pending | 비공개 Sites 버전 1 배포 성공. 실제 AI는 제공자·모델·키·비저장 조건 미확정으로 비활성. 배포 상세는 아래 기록 참조. |
 
 ## 이번 재개 작업의 구현
 
@@ -67,14 +67,14 @@ document_commit_policy: local_commits_only_no_push
 1. 사용할 AI 제공자·모델 또는 기존 분석 서버와 비저장 조건. 비동기 질문을 보냈으나 아직 답변 없음. 실제 외부 호출 0회, 키 생성/설정 없음.
 2. OpenAI 사용 시 `store:false`만으로 외부 비보관이 보장되지 않는다. 승인된 비보관 제어가 선택 프로젝트·모델에 적용되는지 확인해야 한다. 확인 플래그는 운영자의 진술일 뿐 외부 설정을 변경하지 않는다. 자세한 공식 문서와 조건은 [검증 기록](prototype-verification.md) 참조.
 3. OpenAI 키 관리 스킬은 현재 없어 사용하지 않았다. 선택될 경우 OpenAI Developers 플러그인 활성화 또는 안전한 기존 서버 설정 흐름이 필요하다. 키를 채팅에 요구하지 않는다.
-4. Sites는 정확한 배포 소스의 푸시와 그 SHA를 필수로 요구한다. 로컬 커밋은 허용되었지만 푸시는 계속 금지되어 있으므로, 별도 승인 전에는 Sites 생성·소스 업로드·배포, 가짜 SHA, 별도 저장소 임의 푸시를 하지 않는다. 승인을 요청할 때 배포 소스만의 범위와 원격을 명확히 한다.
+4. Sites 배포용 커밋·푸시는 승인되어 실행했다. 이 승인 때문에 다시 Git 예외 승인을 요청하지 않는다. 사이트의 소유자 전용 공개 범위를 유지한다.
 
 ## 재개 순서
 
 1. 위 결정/자격 증명이 도착했는지 확인한다. 이미 완료된 스캐폴딩·이미지 생성·출처 추출은 반복하지 않는다.
 2. 실제 제공자와 비저장 조건을 확인하고 합성 답안으로 네 문항 및 오류·수정 시나리오를 실제 모델로 검증한다. 필요 시 5~7단계 구현을 보정하고 전체 테스트를 다시 실행한다.
 3. 교사가 실제 참여했다는 근거는 아직 없다. 검토 가능한 화면 구조와 실제 교육적 유효성은 구분한다. 검토 체크리스트는 검증 기록에 있다.
-4. 7단계의 남은 검증을 확인하고, Git 예외 승인 후에만 Sites Hosting 절차 진행. `web/.openai/hosting.json`에는 아직 `project_id`가 없다. 최초 생성은 한 번만 하고 반환 ID를 즉시 보존한다.
+4. 아래 기존 Sites 프로젝트와 버전·배포 정보를 재사용한다. `web/.openai/hosting.json`의 `project_id`를 유지하며 create_site를 다시 호출하지 않는다.
 5. 실제 원점 메타데이터, 호스팅 비저장·접근 제한, 안전한 런타임 설정을 확인한 소스로 빌드·정확한 소스 푸시·버전 저장·소유자 제한 배포·실제 왕복 검증을 수행한다.
 6. 검증된 배포 URL이 있을 때만 전체 목표를 완료로 보고한다.
 
@@ -83,6 +83,21 @@ document_commit_policy: local_commits_only_no_push
 `scripts/prepare-evaluation.mjs`에 사용자 제공 PDF 경로를 전달한다. 원본 SHA-256이 다르면 중지한다. 검토 원본, 서버 전용 평가 자료, 내부 해설·예시를 제외한 화면용 문제 자료를 함께 생성하므로 기존 검토와 원본 해시를 먼저 확인한다.
 
 ## 세션 기록
+
+### 2026-09-14 — 실제 AI 연결·배포 재개
+
+- Sites 배포용 소스 커밋·푸시 승인을 반영했다. 배포용 사이트 생성과 버전 1의 비공개 배포를 완료했다.
+- 프로젝트: `appgprj_6aa7aaf663c08191a0bf3dce49d3142c`.
+- 실제 URL: `https://nonsul-coach-sungshin.dongwookq.chatgpt.site`. 생성 응답의 예상 URL과 실제 URL이 달라 런타임 SITE_ORIGIN을 실제 URL로 수정했다.
+- 버전 ID: `appgprj_6aa7aaf663c08191a0bf3dce49d3142c~appgver_f135716ae7788191b7596cac8856b669`.
+- Sites 원격: `https://git.chatgpt-team.site/f4d8b986-769d-442c-a147-8ef7f0bb0e83/appgprj_6aa7aaf663c08191a0bf3dce49d3142c.git`, 브랜치 main.
+- 배포 소스 SHA: `7f096e98a133450bca1ec0872b3e1bac5191ba31`. 상위 main의 `63048b5`에서 web 하위 트리만 추출한 별도 저장소다. 임시 체크아웃 `/tmp/nonsul-sites-deploy.MQB5E9`가 남아 있으면 후속 작업에 재사용한다. 없으면 Sites 원격을 새 체크아웃에 복제한다.
+- 첫 배포 `appgdep_6aa7ab9cb1648191b704dd4a8844a554` 및 실제 원점 적용 재배포 `appgdep_6aa7ac2d63d48191b25a1a6eb0c76d83` 모두 성공했다. 최신 배포는 runtime revision 2를 적용했다.
+- 실제 배포 HTTP 검사: 비인증 접근 401, 인증된 홈·원본 그림 200, 실제 URL 기준 og:image 확인. 합성 답안 요청은 503/NOT_CONFIGURED와 no-store 응답을 반환해 AI 미연결 차단을 확인했다. 본문·자격 증명은 기록하지 않았다. 이 확인을 실제 AI 분석 성공으로 해석하지 않는다.
+- 현재 도구에 open_in_codex가 없어 Sites 탭 자동 열기는 수행하지 못했다. 실제 배포 URL로 접속할 수 있다.
+- 소유자 1명만 허용, 그룹·외부 방문자 0명을 확인했다. runtime revision 2에는 SITE_ORIGIN과 ANALYSIS_RETENTION_CONFIRMED=false만 있다.
+- 로컬 환경·프로젝트 .env에 AI 키나 모델 설정은 없다. OpenAI Developers 키 관리 스킬도 설치 목록에 없으며 해당 플러그인 활성화와 제공자·모델·비저장 상태를 사용자에게 요청했다. 실제 AI 호출은 여전히 0회다. 비저장 확인값을 근거 없이 true로 바꾸지 않는다.
+- 배포 저장소 인증은 단일 Git 명령에만 적용했다. 자격 증명을 소스·원격 URL·Git 설정에 저장하지 않았다. 후속 푸시 시 만료된 경우에만 새 자격 증명을 요청한다.
 
 ### 2026-09-14 — 수정 1: 공식 문제 자료 자동 표시
 
