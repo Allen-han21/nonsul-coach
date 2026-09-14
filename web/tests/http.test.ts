@@ -6,7 +6,6 @@ import { packages } from '../lib/server/package-data';
 import type { AnalysisProvider } from '../lib/server/analysis';
 const input = {
   packageId: packages[0].id,
-  material: '합성 문제',
   answer: '합성 답안',
 };
 const request = (value: unknown = input, origin = 'http://localhost:3000') =>
@@ -24,9 +23,8 @@ const fake: AnalysisProvider = {
       occurrence: 0,
     }));
     return r.phase === 'draft'
-      ? { materialMatch: 'match', candidates }
+      ? { candidates }
       : {
-          materialMatch: 'match',
           reviews: candidates.map((c) => ({
             criterionId: c.criterionId,
             supported: true,
@@ -62,7 +60,7 @@ void test('same-origin JSON-only API rejects extra fields, invalid packages and 
     request({ ...input, studentName: '비공개' }),
     request({ ...input, packageId: 'natural' }),
     request({ ...input, answer: 'x'.repeat(6001) }),
-    request({ ...input, material: 'x'.repeat(100001) }),
+    request({ ...input, material: '허용되지 않는 필드' }),
     new Request('http://localhost:3000/api/analyze', { method: 'GET' }),
   ]) {
     const result = await handleAnalysis(req, {}, factory);

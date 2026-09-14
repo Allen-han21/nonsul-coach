@@ -14,9 +14,8 @@ async function syntheticResult(input: AnalysisInput) {
         occurrence: 0,
       }));
       return r.phase === 'draft'
-        ? { materialMatch: 'match', candidates }
+        ? { candidates }
         : {
-            materialMatch: 'match',
             reviews: candidates.map((c) => ({
               criterionId: c.criterionId,
               supported: true,
@@ -44,9 +43,6 @@ test('input → source-linked feedback → exact evidence selection → revision
   });
   await page.goto('/');
   await page.getByLabel('기출 연도·문항').selectOption('sungshin-2027-mock-2');
-  await page
-    .getByLabel('논술 문제·제시문')
-    .fill('합성 검증용 문제·제시문입니다. 학생 자료가 아닙니다.');
   await page
     .getByLabel('학생 답안', { exact: true })
     .fill('합성 검증용 답안입니다.\n\n제시문 간 관계를 검토합니다.');
@@ -87,11 +83,7 @@ test('input → source-linked feedback → exact evidence selection → revision
   await expect(page.locator('.priority-card')).toHaveCount(1);
   expect(sent).toHaveLength(2);
   expect(sent[0].packageId).toBe(sent[1].packageId);
-  expect(Object.keys(sent[1]).sort()).toEqual([
-    'answer',
-    'material',
-    'packageId',
-  ]);
+  expect(Object.keys(sent[1]).sort()).toEqual(['answer', 'packageId']);
   await expect(page.getByLabel('학생 답안', { exact: true })).toHaveValue(
     sent[1].answer,
   );
@@ -133,7 +125,6 @@ test('loading is cancellable, errors preserve input, and arbitrary server prose 
       .catch(() => {});
   });
   await page.goto('/');
-  await page.getByLabel('논술 문제·제시문').fill('합성 문제');
   await page.getByLabel('학생 답안', { exact: true }).fill('합성 답안');
   await page.getByRole('button', { name: '피드백 받기', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('재검증');
@@ -165,7 +156,6 @@ test('unconfigured real local route reports setup blocker without an external an
   page,
 }) => {
   await page.goto('/');
-  await page.getByLabel('논술 문제·제시문').fill('합성 문제');
   await page.getByLabel('학생 답안', { exact: true }).fill('합성 답안');
   await page.getByRole('button', { name: '피드백 받기', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText(

@@ -52,11 +52,6 @@ export const FeedbackSchema = z
 export const InputSchema = z
   .object({
     packageId: PackageIdSchema,
-    material: z
-      .string()
-      .min(1)
-      .max(20000)
-      .refine((s) => !!s.trim(), '문제와 제시문을 입력해 주세요.'),
     answer: z
       .string()
       .min(1)

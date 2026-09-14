@@ -15,6 +15,9 @@ async function files(directory) {
   ).flat();
 }
 const official = JSON.parse(await readFile('lib/server/official.json', 'utf8'));
+const publicQuestions = JSON.parse(
+  await readFile('lib/question-content.json', 'utf8'),
+);
 const canonical = JSON.parse(
   await readFile('../docs/evaluation/source.json', 'utf8'),
 );
@@ -23,6 +26,23 @@ assert.deepEqual(
   canonical,
   'Server source data has diverged from the reviewed source',
 );
+assert.deepEqual(Object.keys(publicQuestions).sort(), [
+  'actual',
+  'mock',
+  'source',
+]);
+assert.deepEqual(publicQuestions.actual.instructions, official.instructions);
+assert.deepEqual(publicQuestions.actual.passages, official.passages);
+assert.deepEqual(publicQuestions.actual.questions, official.questions);
+assert.deepEqual(publicQuestions.mock.instructions, official.mock.instructions);
+assert.deepEqual(publicQuestions.mock.passages, official.mock.passages);
+assert.deepEqual(publicQuestions.mock.questions, official.mock.questions);
+for (const internalKey of ['examples', 'rubricText', 'commentary', 'intent'])
+  assert.ok(
+    !Object.hasOwn(publicQuestions.actual, internalKey) &&
+      !Object.hasOwn(publicQuestions.mock, internalKey),
+    'Internal key ' + internalKey + ' must not be exposed as question content',
+  );
 const publicFiles = await files('dist/client');
 assert.ok(
   !publicFiles.some((file) => /official\.json|\.pdf$|\.map$|\.env/.test(file)),
@@ -55,6 +75,12 @@ for (const internal of [
 await readFile('dist/server/index.js');
 await readFile('dist/.openai/hosting.json');
 assert.ok(publicFiles.some((file) => file.endsWith('/og.png')));
+assert.ok(
+  publicFiles.some((file) =>
+    file.endsWith('/official/sungshin-2026-population-board-000.jpg'),
+  ),
+  'Official population figure is missing from the client build',
+);
 console.log(
-  `Build boundary verified: ${publicFiles.length} public assets, canonical sources match, no official examples or credential settings in client output.`,
+  `Build boundary verified: ${publicFiles.length} public assets, public questions match the canonical source, and no official examples or credential settings reached the client.`,
 );

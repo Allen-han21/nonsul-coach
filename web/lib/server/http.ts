@@ -16,11 +16,7 @@ export const errorMessages = {
   PRIVACY_NOT_CONFIRMED:
     '분석 제공자의 답안 비저장 설정이 확인되지 않아 전송을 중단했습니다. 운영자의 설정 확인이 필요합니다.',
   INVALID_INPUT:
-    '선택한 문항과 입력 내용을 확인해 주세요. 문제·제시문은 20,000자, 답안은 6,000자 이내로 입력해 주세요.',
-  MATERIAL_MISMATCH:
-    '입력한 문제·제시문이 선택한 문항과 다릅니다. 문항 선택과 원문을 확인해 주세요.',
-  MATERIAL_UNCERTAIN:
-    '선택한 문제와 제시문이 충분히 입력되었는지 확인하기 어렵습니다. 공식 원문과 제시문 기호를 확인해 주세요.',
+    '선택한 문항과 답안을 확인해 주세요. 답안은 6,000자 이내로 입력해 주세요.',
   PROVIDER_FAILED:
     '분석 결과를 안전하게 확인하지 못했습니다. 입력을 유지했으니 잠시 후 다시 시도해 주세요.',
   TIMEOUT:
@@ -87,7 +83,7 @@ export async function handleAnalysis(
     const input = parsed.data;
     if (
       /(?:[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|\b01[016789][ -]?\d{3,4}[ -]?\d{4}\b|\b\d{6}[ -]?[1-4]\d{6}\b)/i.test(
-        `${input.material}\n${input.answer}`,
+        input.answer,
       )
     ) {
       return json(
@@ -118,7 +114,7 @@ export async function handleAnalysis(
     const code =
       error instanceof AnalysisError ? error.code : 'PROVIDER_FAILED';
     const status =
-      code === 'INVALID_INPUT' || code.startsWith('MATERIAL_')
+      code === 'INVALID_INPUT'
         ? 400
         : code === 'TIMEOUT'
           ? 504

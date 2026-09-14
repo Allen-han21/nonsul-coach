@@ -11,7 +11,7 @@ import { packages, officialFor } from '../lib/server/package-data';
 
 const pkg = packages[3];
 const answer = '접근의 차이를 확인한다.\n\n결과의 편향을 살펴본다.';
-const input = { packageId: pkg.id, material: '테스트 전용 합성 자료', answer };
+const input = { packageId: pkg.id, answer };
 const candidates = () =>
   pkg.criteria.map((c) => ({
     criterionId: c.id,
@@ -25,9 +25,8 @@ type MutableCandidate = {
   quote: string | null;
   occurrence: number | null;
 } & Record<string, unknown>;
-type MutableDraft = { materialMatch: string; candidates: MutableCandidate[] };
+type MutableDraft = { candidates: MutableCandidate[] };
 type MutableReview = {
-  materialMatch: string;
   reviews: ({
     criterionId: string;
     supported: boolean;
@@ -38,13 +37,12 @@ function provider(
   edit?: (draft: MutableDraft) => void,
   reviewEdit?: (review: MutableReview) => void,
 ): AnalysisProvider {
-  const draft = { materialMatch: 'match', candidates: candidates() };
+  const draft = { candidates: candidates() };
   edit?.(draft);
   return {
     async generate(request) {
       if (request.phase === 'draft') return draft;
       const review = {
-        materialMatch: 'match',
         reviews: draft.candidates.map((c) => ({
           criterionId: c.criterionId,
           supported: true,
@@ -173,27 +171,7 @@ void test('malformed model prose, scores and model-written examples cannot cross
   );
   assert.ok(result.diagnoses.every((f) => !f.verified));
 });
-void test('material mismatch, insufficient material, review failure and input injection fail safely', async () => {
-  await assert.rejects(
-    analyze(
-      input,
-      pkg,
-      provider((d) => {
-        d.materialMatch = 'mismatch';
-      }),
-    ),
-    /MATERIAL_MISMATCH/,
-  );
-  await assert.rejects(
-    analyze(
-      input,
-      pkg,
-      provider(undefined, (r) => {
-        r.materialMatch = 'uncertain';
-      }),
-    ),
-    /MATERIAL_UNCERTAIN/,
-  );
+void test('official material cannot be replaced by answer instructions, and review failure is safe', async () => {
   const calls: ModelRequest[] = [];
   const delegate = provider();
   const result = await analyze(
@@ -223,31 +201,26 @@ void test('all four packages can be revised using the same version, with no prio
   for (const p of packages) {
     let previous = '';
     for (const text of ['첫 번째 합성 답안', '두 번째 합성 수정 답안']) {
-      const result = await analyze(
-        { packageId: p.id, material: '합성 제시문', answer: text },
-        p,
-        {
-          async generate(r) {
-            assert.ok(!previous || !r.input.includes(previous));
-            const items = p.criteria.map((c) => ({
-              criterionId: c.id,
-              concern: 'supported',
-              quote: text,
-              occurrence: 0,
-            }));
-            return r.phase === 'draft'
-              ? { materialMatch: 'match', candidates: items }
-              : {
-                  materialMatch: 'match',
-                  reviews: items.map((c) => ({
-                    criterionId: c.criterionId,
-                    concern: c.concern,
-                    supported: true,
-                  })),
-                };
-          },
+      const result = await analyze({ packageId: p.id, answer: text }, p, {
+        async generate(r) {
+          assert.ok(!previous || !r.input.includes(previous));
+          const items = p.criteria.map((c) => ({
+            criterionId: c.id,
+            concern: 'supported',
+            quote: text,
+            occurrence: 0,
+          }));
+          return r.phase === 'draft'
+            ? { candidates: items }
+            : {
+                reviews: items.map((c) => ({
+                  criterionId: c.criterionId,
+                  concern: c.concern,
+                  supported: true,
+                })),
+              };
         },
-      );
+      });
       assert.equal(result.sourceVersion, p.source.version);
       previous = text;
     }
@@ -344,9 +317,8 @@ void test('official example sentences and model-authored prose are never emitted
           occurrence: 0,
         }));
         return r.phase === 'draft'
-          ? { materialMatch: 'match', candidates: items }
+          ? { candidates: items }
           : {
-              materialMatch: 'match',
               reviews: items.map((c) => ({
                 criterionId: c.criterionId,
                 concern: c.concern,

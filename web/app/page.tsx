@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/native-select';
 import { Label } from '@/components/ui/label';
 import { FeedbackView } from '@/components/feedback';
+import { OfficialMaterial } from '@/components/official-material';
 import { ResultSchema, type AnalysisResult, type Evidence } from '@/lib/schema';
 import { countAnswer } from '@/lib/rules';
 
@@ -30,6 +31,8 @@ const choices = [
       '두 연금 운용 방식의 비교',
       '역할과 일관된 운영 방안',
     ],
+    exam: 'actual' as const,
+    questionIndex: 0,
   },
   {
     id: 'sungshin-2026-1-2',
@@ -41,6 +44,8 @@ const choices = [
       '연금의 정당성과 한계',
       '내용의 정합성과 논리적 연결',
     ],
+    exam: 'actual' as const,
+    questionIndex: 1,
   },
   {
     id: 'sungshin-2027-mock-1',
@@ -52,6 +57,8 @@ const choices = [
       '교육의 경제적·사회적 의미',
       '세 제시문 관점의 통합',
     ],
+    exam: 'mock' as const,
+    questionIndex: 0,
   },
   {
     id: 'sungshin-2027-mock-2',
@@ -63,6 +70,8 @@ const choices = [
       '디지털 문해력 격차와 편향',
       '자신의 견해와 해결 방향',
     ],
+    exam: 'mock' as const,
+    questionIndex: 1,
   },
 ];
 const subscribeHydration = () => () => {};
@@ -75,23 +84,24 @@ export default function Home() {
     serverSnapshot,
   );
   const [id, setId] = useState(choices[0].id);
-  const [material, setMaterial] = useState('');
   const [answer, setAnswer] = useState('');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
-  const [snapshot, setSnapshot] = useState<{
-    answer: string;
-    material: string;
-  } | null>(null);
+  const [snapshot, setSnapshot] = useState<{ answer: string } | null>(null);
   const controller = useRef<AbortController | null>(null);
   const answerRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => () => controller.current?.abort(), []);
+  useEffect(() => {
+    if (!result) return;
+    const frame = requestAnimationFrame(() =>
+      document.getElementById('feedback-title')?.focus(),
+    );
+    return () => cancelAnimationFrame(frame);
+  }, [result]);
   const selected = choices.find((c) => c.id === id)!;
   const count = countAnswer(answer).withSpaces;
-  const stale =
-    !!snapshot &&
-    (snapshot.answer !== answer || snapshot.material !== material);
+  const stale = !!snapshot && snapshot.answer !== answer;
   function locate(evidence?: Evidence) {
     const element = answerRef.current;
     if (!element) return;
@@ -102,8 +112,8 @@ export default function Home() {
   async function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     if (controller.current) return;
-    if (!material.trim() || !answer.trim()) {
-      setNotice('문제·제시문과 학생 답안을 모두 입력해 주세요.');
+    if (!answer.trim()) {
+      setNotice('학생 답안을 입력해 주세요.');
       return;
     }
     const current = new AbortController();
@@ -115,7 +125,7 @@ export default function Home() {
       const response = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ packageId: id, material, answer }),
+        body: JSON.stringify({ packageId: id, answer }),
         signal: current.signal,
         cache: 'no-store',
       });
@@ -128,14 +138,10 @@ export default function Home() {
             '분석 서버 연결이 아직 완료되지 않았습니다. 입력은 유지되며 외부 AI로 전송하지 않았습니다.',
           PRIVACY_NOT_CONFIRMED:
             '분석 제공자의 답안 비저장 설정이 확인되지 않아 전송을 중단했습니다. 운영자의 설정 확인이 필요합니다.',
-          MATERIAL_MISMATCH:
-            '입력한 문제·제시문이 선택한 문항과 다릅니다. 문항과 원문을 확인해 주세요.',
-          MATERIAL_UNCERTAIN:
-            '문제와 제시문이 충분한지 확인하기 어렵습니다. 공식 원문과 제시문 기호를 확인해 주세요.',
           PRIVATE_INPUT:
             '개인정보로 보이는 내용이 있습니다. 연락처·이메일·주민등록번호를 지운 뒤 다시 시도해 주세요.',
           INVALID_INPUT:
-            '문제·제시문과 답안을 확인해 주세요. 문제·제시문 20,000자, 답안 6,000자 이내로 입력해 주세요.',
+            '학생 답안을 확인해 주세요. 답안은 6,000자 이내로 입력해 주세요.',
           TIMEOUT:
             '분석 시간이 초과되었습니다. 입력은 유지되니 잠시 후 다시 시도해 주세요.',
         };
@@ -160,10 +166,7 @@ export default function Home() {
       )
         throw new Error('Invalid result');
       setResult(parsed.data);
-      setSnapshot({ material, answer });
-      requestAnimationFrame(() =>
-        document.getElementById('feedback-title')?.focus(),
-      );
+      setSnapshot({ answer });
     } catch {
       if (controller.current === current)
         setNotice(
@@ -271,22 +274,10 @@ export default function Home() {
                   </NativeSelect>
                 </div>
               </div>
-              <div className="field">
-                <Label htmlFor="material">논술 문제·제시문</Label>
-                <Textarea
-                  id="material"
-                  required
-                  maxLength={20000}
-                  value={material}
-                  onChange={(e) => setMaterial(e.target.value)}
-                  placeholder="선택한 문항의 문제와 제시문을 직접 입력해 주세요. 제시문 기호도 함께 적어 주세요."
-                  aria-describedby="material-help"
-                  spellCheck={false}
-                />
-                <p className="hint" id="material-help">
-                  공식 가이드북의 해당 문항을 확인해 입력해 주세요.
-                </p>
-              </div>
+              <OfficialMaterial
+                exam={selected.exam}
+                questionIndex={selected.questionIndex}
+              />
               <div className="field">
                 <div className="field-heading">
                   <Label htmlFor="answer-input">학생 답안</Label>
@@ -384,7 +375,7 @@ export default function Home() {
             <h3>스스로 고치는 세 단계</h3>
             <ol>
               <li>
-                <span>문제와 나의 답안 입력</span>
+                <span>문항 선택과 공식 제시문 확인</span>
               </li>
               <li>
                 <span>공식 기준과 답안의 근거 확인</span>

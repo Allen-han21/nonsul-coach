@@ -103,13 +103,12 @@ void test('explicit rule branches support partial satisfaction without adding su
 void test('schema rejects empty/oversized/private-field inputs, arbitrary statuses, scores and extra result fields', () => {
   const valid = {
     packageId: packages[0].id,
-    material: '검증용 문제',
     answer: '검증용 답안',
   };
   for (const bad of [
     { ...valid, answer: '   ' },
     { ...valid, answer: '가'.repeat(6001) },
-    { ...valid, material: '' },
+    { ...valid, material: '허용되지 않는 필드' },
     { ...valid, name: '개인정보' },
     { ...valid, packageId: 'natural-science' },
   ])
