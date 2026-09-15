@@ -39,10 +39,11 @@ function json(body: unknown, status = 200) {
 export function configuredProvider(config: RuntimeConfig): AnalysisProvider {
   if (config.provider !== 'openai' || !config.apiKey || !config.model)
     throw new AnalysisError('NOT_CONFIGURED');
+  if (config.retentionConfirmed !== 'true')
+    throw new AnalysisError('PRIVACY_NOT_CONFIRMED');
   return createOpenAIProvider({
     apiKey: config.apiKey,
     model: config.model,
-    retentionConfirmed: config.retentionConfirmed === 'true',
   });
 }
 // Factory injection is used by isolated tests only. No test mode or fake-provider environment switch exists.

@@ -1,11 +1,11 @@
 ---
-last_updated: 2026-09-14
+last_updated: 2026-09-15
 branch: main
 base_commit: 05eedf8
 approval: approved
 current_step: 7
-status: awaiting_required_input
-next_action: "OpenAI Developers 키 관리 연결 및 제공자·모델·비저장 조건을 확정해 실제 AI 검증"
+status: blocked_by_openai_credit_and_retention_confirmation
+next_action: "OpenAI API 최소 크레딧과 프로젝트 지출 한도를 설정한 뒤 합성 실호출을 재개하고, 배포 전 비보관 적용 여부를 확인"
 document_commit_policy: local_commits_and_sites_source_push_approved
 ---
 
@@ -31,16 +31,17 @@ document_commit_policy: local_commits_and_sites_source_push_approved
 | 2. 프로젝트 기반 | done | `web/` Sites+shadcn, 한글 테마·메타데이터, 초기 개발 실행·빌드 통과. |
 | 3. 입력 화면 | done | 여섯 문항 선택 시 공식 유의사항·문제·전체 제시문 자동 표시, 답안 입력란·개인정보 안내·참고 글자 수. 실제 미리보기와 브라우저 검증은 수정 1 당시 4문항 범위. 수정 2는 단위·빌드 검증. |
 | 4. 평가 데이터·규칙 | done | 엄격한 스키마, 출처 연결, 보수적인 규칙 검사. 경계·예외 테스트 통과. |
-| 5. AI 분석·재검증 | local_pass | 후보→독립 재검토→정확한 원문 인용·정식 출처 재검증. 합성 제공자로 완료 기준 확인. 실제 모델 연결 미완료. |
+| 5. AI 분석·재검증 | live_blocked_by_credit | 후보→독립 재검토→정확한 원문 인용·정식 출처 재검증. OpenAI 연결은 1Password `op run`으로 실제 API까지 도달했으나 `credit_balance_exhausted`로 모델 실행 전에 중단됨. |
 | 6. 피드백·재분석 화면 | local_pass | 한 화면에 기준별 진단·우선 과제 최대 3개·근거 선택·출처·수정 질문/행동·재분석. 데스크톱/모바일 합성 왕복 통과. |
-| 7. 품질·안전성 | local_pass_live_pending | [검증 기록](prototype-verification.md). 테스트 22개, 타입·린트·빌드·클라이언트 노출 검사 통과. 화면 테스트 8개 통과는 수정 1 당시 범위. 실제 AI와 교육적 유효성은 미검증. |
+| 7. 품질·안전성 | local_pass_live_pending | [검증 기록](prototype-verification.md). 테스트 22개, 타입·린트·빌드·클라이언트 노출 검사 통과. 실제 API 오류 분류까지 확인했으며 성공 응답과 교육적 유효성은 미검증. |
 | 8. 배포·최종 확인 | deployed_ai_pending | 2교시를 포함한 비공개 Sites 버전 2 배포 성공. 실제 AI는 제공자·모델·키·비저장 조건 미확정으로 비활성. 배포 상세는 아래 기록 참조. |
 
 ## 이번 재개 작업의 구현
 
 - `web/lib/server/analysis.ts`: 제공자 인터페이스, 2단계 구조화 분석. 후보/리뷰 스키마 검증, 가짜·중복·누락 ID와 허위 인용 처리, 반복 인용 위치 해석, 불확실한 지적을 우선 과제에서 제외.
 - 모델이 자유 작성한 이유·행동·완성 문장은 응답에 포함하지 않는다. 검토된 기준별 문구 + 판단 종류 + 원문 근거 위치를 조합한다. 실제 의미 판단의 정확성까지 보장하는 방식은 아니다.
-- `openai-provider.ts`: 선택 가능한 OpenAI Responses 어댑터를 준비했지만 기본 비활성. 제공자·모델·키·비저장 확인값이 모두 있어야 사용 가능. 키/본문 로그·대화 ID·파일 업로드·자동 재시도 없음.
+- `openai-provider.ts`: OpenAI Responses 어댑터는 `store:false`, 비백그라운드, 낮은 추론 강도와 엄격한 JSON Schema를 사용한다. 키/본문 로그·대화 ID·파일 업로드·자동 재시도 없음. 운영 HTTP 경계는 제공자·모델·키·비저장 확인값이 모두 있어야 활성화된다.
+- `scripts/verify-openai.ts`: 식별정보가 없는 고정 합성 답안으로 한 문항 또는 여섯 문항을 검증한다. 응답 본문은 출력하지 않고 문항별 검증 개수·시간과 API 토큰 수만 출력한다.
 - `http.ts`, `app/api/analyze/route.ts`: 서버 전용 진입점, 동일 출처 JSON 요청, 엄격한 입력·바이트 제한, 기본 식별정보 패턴 차단, 분석 시간 제한, no-store 응답, 안전한 오류 코드.
 - `app/page.tsx`, `components/feedback.tsx`: 로딩/취소/오류/재시도, 수정 전 결과 안내, 인용 선택, 문항 변경 시 결과 해제, 재분석 시 이전 답안 미전송.
 - `app/layout.tsx`: 기존 생성 공유 이미지 `public/og.png` 연결. 현재 기본 절대 URL은 로컬용이며 배포 시 실제 `SITE_ORIGIN`으로 재검증해야 한다.
@@ -53,6 +54,7 @@ document_commit_policy: local_commits_and_sites_source_push_approved
 - `npm run lint`, `npm run typecheck`, `npm run build`: 통과.
 - 수정 1 당시 `npm run test:browser`: 8개 통과. 동일 8개를 빌드 산출물의 로컬 Worker 환경에서도 통과했다. 수정 2에서는 브라우저 테스트 사례만 확장하고 실행하지 않았다.
 - `node scripts/verify-build.mjs`: 공개 자산 16개, 화면용 공식 문제 자료와 검토 원본 일치, 공식 예시답안/키 설정의 브라우저 노출 없음.
+- `op run -- npm run test:openai`: 1Password의 개발용 키가 프로세스 메모리에만 주입되고 OpenAI까지 요청이 도달함을 확인. 현재 두 번의 첫 단계 합성 요청이 모두 `429 / insufficient_quota / credit_balance_exhausted`로 거절되어 성공한 모델 생성은 0회다.
 - 의존성 취약점 검사 0건. `git diff --check` 통과.
 - 현재 로컬 미리보기 `http://localhost:3000/` 유지. 개발 서버의 기존 exec 세션은 59842. 끊겼다면 정확한 URL 상태만 먼저 확인한 뒤 필요할 때 재실행한다.
 - 빌드 검증용 Worker 세션 51839 (`http://localhost:4173/`)는 검증 완료 후 종료했다.
@@ -62,17 +64,17 @@ document_commit_policy: local_commits_and_sites_source_push_approved
 - 그림 수치는 임의 복원하지 않는다. 분석은 해당 논술 제시문 범위이며 현재 연금 제도·법률 안내가 아니다.
 - 사용자 수정 1에 따라 문제·제시문 수동 입력을 제거했다. 선택한 실제 기출 또는 모의논술의 공식 원문을 읽기 전용으로 표시하고, 2026 실제 기출의 인구상황판은 PDF에서 추출한 원본 그림을 사용한다. 분석 API는 학생 답안만 받으며 공식 자료는 서버 평가 패키지에서 정한다.
 
-## 사용자에게 필요한 결정
+## 남은 외부 설정
 
-1. 사용할 AI 제공자·모델 또는 기존 분석 서버와 비저장 조건. 비동기 질문을 보냈으나 아직 답변 없음. 실제 외부 호출 0회, 키 생성/설정 없음.
-2. OpenAI 사용 시 `store:false`만으로 외부 비보관이 보장되지 않는다. 승인된 비보관 제어가 선택 프로젝트·모델에 적용되는지 확인해야 한다. 확인 플래그는 운영자의 진술일 뿐 외부 설정을 변경하지 않는다. 자세한 공식 문서와 조건은 [검증 기록](prototype-verification.md) 참조.
-3. OpenAI 키 관리 스킬은 현재 없어 사용하지 않았다. 선택될 경우 OpenAI Developers 플러그인 활성화 또는 안전한 기존 서버 설정 흐름이 필요하다. 키를 채팅에 요구하지 않는다.
-4. Sites 배포용 커밋·푸시는 승인되어 실행했다. 이 승인 때문에 다시 Git 예외 승인을 요청하지 않는다. 사이트의 소유자 전용 공개 범위를 유지한다.
+1. 제공자는 OpenAI, 검증 모델은 `gpt-5.6-terra`, 키는 1Password의 `OpenAI API` 항목 `credential` 필드로 확정했다. 평문 `.env.local`을 만들지 않고 `op run`으로 실행 프로세스에만 주입한다.
+2. API 조직에 선불 크레딧이 없어 현재 호출이 차단된다. 프로토타입 전략은 최소 $5만 충전하고 자동 충전을 끈 뒤, 가능하면 전용 프로젝트에 월 $5 하드 지출 한도와 $2/$4 알림을 두는 것이다. ChatGPT 구독과 API 결제는 별도다.
+3. OpenAI 사용 시 `store:false`만으로 외부 비보관이 보장되지 않는다. 실제 학생 답안을 받기 전 승인된 Zero Data Retention 또는 Modified Abuse Monitoring이 선택 프로젝트·모델에 적용되는지 확인해야 한다. 확인 전에는 배포의 `ANALYSIS_RETENTION_CONFIRMED=false`를 유지한다.
+4. Sites 배포용 커밋·푸시는 승인되어 있다. 후속 배포에서도 사이트의 소유자 전용 공개 범위를 유지하며 상위 GitHub 저장소는 푸시하지 않는다.
 
 ## 재개 순서
 
-1. 위 결정/자격 증명이 도착했는지 확인한다. 이미 완료된 스캐폴딩·이미지 생성·출처 추출은 반복하지 않는다.
-2. 실제 제공자와 비저장 조건을 확인하고 합성 답안으로 여섯 문항 및 오류·수정 시나리오를 실제 모델로 검증한다. 필요 시 5~7단계 구현을 보정하고 전체 테스트를 다시 실행한다.
+1. OpenAI API 선불 크레딧과 프로젝트 하드 지출 한도를 확인한다. 이미 완료된 키 생성·1Password 저장·스캐폴딩·출처 추출은 반복하지 않는다.
+2. `op run -- npm run test:openai`, 이어서 `op run -- npm run test:openai -- --all`로 합성 답안의 한 문항과 여섯 문항을 검증한다. 필요 시 5~7단계 구현을 보정하고 전체 테스트를 다시 실행한다.
 3. 교사가 실제 참여했다는 근거는 아직 없다. 검토 가능한 화면 구조와 실제 교육적 유효성은 구분한다. 검토 체크리스트는 검증 기록에 있다.
 4. 아래 기존 Sites 프로젝트와 버전·배포 정보를 재사용한다. `web/.openai/hosting.json`의 `project_id`를 유지하며 create_site를 다시 호출하지 않는다.
 5. 실제 원점 메타데이터, 호스팅 비저장·접근 제한, 안전한 런타임 설정을 확인한 소스로 빌드·정확한 소스 푸시·버전 저장·소유자 제한 배포·실제 왕복 검증을 수행한다.
@@ -83,6 +85,14 @@ document_commit_policy: local_commits_and_sites_source_push_approved
 `scripts/prepare-evaluation.mjs`에 사용자 제공 PDF 경로를 전달한다. 원본 SHA-256이 다르면 중지한다. 검토 원본, 서버 전용 평가 자료, 내부 해설·예시를 제외한 화면용 문제 자료를 함께 생성하므로 기존 검토와 원본 해시를 먼저 확인한다.
 
 ## 세션 기록
+
+### 2026-09-15 — 1Password 기반 OpenAI 실연결 시도
+
+- 사용자가 직접 만든 개발용 OpenAI API 키를 1Password의 `OpenAI API` 항목 `credential` 필드에 저장했다. 키 값은 파일·Git·명령 출력에 기록하지 않고 1Password secret reference와 `op run`으로 프로세스에만 주입했다. `.env.local`은 만들지 않았다.
+- OpenAI Developers 키 관리·문제 해결 절차와 OpenAI 공식 문서를 사용했다. 검증 모델은 비용과 품질의 균형을 위한 `gpt-5.6-terra`, 추론 강도는 `low`로 두었다.
+- 운영의 비보관 확인 게이트는 유지하면서, 식별정보가 없는 고정 합성 답안을 실제 어댑터와 2단계 분석 엔진에 전달하는 `npm run test:openai`를 추가했다. 출력은 문항별 상태·검증 개수·시간·토큰 수로 제한했다.
+- 첫 문항의 첫 단계 요청을 두 번 시도했고 모두 OpenAI가 `429 / insufficient_quota / credit_balance_exhausted`로 거절했다. 키 인증과 네트워크 경로는 통과했지만 모델 생성은 시작되지 않았다. 크레딧 추가 뒤 같은 명령부터 재개한다.
+- 단위 테스트 22개, 타입 검사, 린트, 운영 빌드, 공개 자산 16개 경계 검사가 통과했다. 비공개 Sites 배포와 runtime revision 2는 변경하지 않았고 `ANALYSIS_RETENTION_CONFIRMED=false`도 유지했다.
 
 ### 2026-09-14 — 수정 2: 2026 인문 2교시 추가
 

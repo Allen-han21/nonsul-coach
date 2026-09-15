@@ -232,23 +232,16 @@ void test('OpenAI adapter is opt-in and non-persistent; refuses incomplete/refus
       createOpenAIProvider({
         apiKey: '',
         model: '',
-        retentionConfirmed: false,
       }),
     /NOT_CONFIGURED/,
   );
-  assert.throws(
-    () =>
-      createOpenAIProvider({
-        apiKey: 'fake-test-key',
-        model: 'operator-selected',
-        retentionConfirmed: false,
-      }),
-    /PRIVACY_NOT_CONFIRMED/,
-  );
+  let usage: unknown;
   const config = {
     apiKey: 'fake-test-key',
     model: 'operator-selected',
-    retentionConfirmed: true,
+    onUsage: (value: unknown) => {
+      usage = value;
+    },
   };
   const request: ModelRequest = {
     phase: 'draft',
@@ -262,6 +255,7 @@ void test('OpenAI adapter is opt-in and non-persistent; refuses incomplete/refus
     const body = JSON.parse(init!.body as string);
     assert.equal(body.store, false);
     assert.equal(body.background, false);
+    assert.equal(body.reasoning.effort, 'low');
     assert.equal(body.text.format.type, 'json_schema');
     assert.equal(body.text.format.strict, true);
     assert.ok(
@@ -271,6 +265,7 @@ void test('OpenAI adapter is opt-in and non-persistent; refuses incomplete/refus
     );
     return Response.json({
       status: 'completed',
+      usage: { input_tokens: 10, output_tokens: 5, total_tokens: 15 },
       output: [
         {
           type: 'message',
@@ -280,6 +275,11 @@ void test('OpenAI adapter is opt-in and non-persistent; refuses incomplete/refus
     });
   });
   assert.deepEqual(await adapter.generate(request), { ok: true });
+  assert.deepEqual(usage, {
+    inputTokens: 10,
+    outputTokens: 5,
+    totalTokens: 15,
+  });
   for (const payload of [
     { status: 'incomplete', output: [] },
     {

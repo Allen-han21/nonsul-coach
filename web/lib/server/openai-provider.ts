@@ -4,14 +4,21 @@ import {
   type AnalysisProvider,
   type ModelRequest,
 } from './analysis';
+export type OpenAIUsage = {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+};
 export function createOpenAIProvider(
-  config: { apiKey: string; model: string; retentionConfirmed: boolean },
+  config: {
+    apiKey: string;
+    model: string;
+    onUsage?: (usage: OpenAIUsage) => void;
+  },
   transport: typeof fetch = fetch,
 ): AnalysisProvider {
   if (!config.apiKey.trim() || !config.model.trim())
     throw new AnalysisError('NOT_CONFIGURED');
-  if (!config.retentionConfirmed)
-    throw new AnalysisError('PRIVACY_NOT_CONFIRMED');
   return {
     async generate(request: ModelRequest) {
       let response: Response;
@@ -29,6 +36,7 @@ export function createOpenAIProvider(
             store: false,
             background: false,
             max_output_tokens: 5000,
+            reasoning: { effort: 'low' },
             input: [
               { role: 'developer', content: request.instructions },
               { role: 'user', content: request.input },
@@ -58,6 +66,22 @@ export function createOpenAIProvider(
         const payload = JSON.parse(raw);
         if (payload.status !== 'completed' || !Array.isArray(payload.output))
           throw new Error();
+        if (
+          payload.usage &&
+          typeof payload.usage.input_tokens === 'number' &&
+          typeof payload.usage.output_tokens === 'number' &&
+          typeof payload.usage.total_tokens === 'number'
+        ) {
+          try {
+            config.onUsage?.({
+              inputTokens: payload.usage.input_tokens,
+              outputTokens: payload.usage.output_tokens,
+              totalTokens: payload.usage.total_tokens,
+            });
+          } catch {
+            // Optional accounting must never affect analysis delivery.
+          }
+        }
         const parts = payload.output
           .filter((item: { type?: string }) => item.type === 'message')
           .flatMap((item: { content?: unknown[] }) => item.content ?? []);
