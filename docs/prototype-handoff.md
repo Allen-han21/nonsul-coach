@@ -1,11 +1,11 @@
 ---
-last_updated: 2026-09-15
+last_updated: 2026-09-21
 branch: main
 base_commit: 05eedf8
 approval: approved
 current_step: 7
-status: blocked_by_openai_credit_and_retention_confirmation
-next_action: "OpenAI API 최소 크레딧과 프로젝트 지출 한도를 설정한 뒤 합성 실호출을 재개하고, 배포 전 비보관 적용 여부를 확인"
+status: awaiting_retention_confirmation_before_private_deploy
+next_action: "선택 프로젝트의 Zero Data Retention 또는 Modified Abuse Monitoring 적용을 확인한 뒤 Sites 런타임 비밀 설정·비공개 재배포·실제 왕복 검증"
 document_commit_policy: local_commits_and_sites_source_push_approved
 ---
 
@@ -31,10 +31,10 @@ document_commit_policy: local_commits_and_sites_source_push_approved
 | 2. 프로젝트 기반 | done | `web/` Sites+shadcn, 한글 테마·메타데이터, 초기 개발 실행·빌드 통과. |
 | 3. 입력 화면 | done | 여섯 문항 선택 시 공식 유의사항·문제·전체 제시문 자동 표시, 답안 입력란·개인정보 안내·참고 글자 수. 실제 미리보기와 브라우저 검증은 수정 1 당시 4문항 범위. 수정 2는 단위·빌드 검증. |
 | 4. 평가 데이터·규칙 | done | 엄격한 스키마, 출처 연결, 보수적인 규칙 검사. 경계·예외 테스트 통과. |
-| 5. AI 분석·재검증 | live_blocked_by_credit | 후보→독립 재검토→정확한 원문 인용·정식 출처 재검증. OpenAI 연결은 1Password `op run`으로 실제 API까지 도달했으나 `credit_balance_exhausted`로 모델 실행 전에 중단됨. |
+| 5. AI 분석·재검증 | live_pass | 후보→독립 재검토→정확한 원문 인용·정식 출처 재검증. `gpt-5.6-terra`로 여섯 문항 12회 실제 요청이 모두 `verified_ai`로 완료됨. |
 | 6. 피드백·재분석 화면 | local_pass | 한 화면에 기준별 진단·우선 과제 최대 3개·근거 선택·출처·수정 질문/행동·재분석. 데스크톱/모바일 합성 왕복 통과. |
-| 7. 품질·안전성 | local_pass_live_pending | [검증 기록](prototype-verification.md). 테스트 22개, 타입·린트·빌드·클라이언트 노출 검사 통과. 실제 API 오류 분류까지 확인했으며 성공 응답과 교육적 유효성은 미검증. |
-| 8. 배포·최종 확인 | deployed_ai_pending | 2교시를 포함한 비공개 Sites 버전 2 배포 성공. 실제 AI는 제공자·모델·키·비저장 조건 미확정으로 비활성. 배포 상세는 아래 기록 참조. |
+| 7. 품질·안전성 | live_technical_pass | [검증 기록](prototype-verification.md). 테스트 22개, 타입·린트·빌드·클라이언트 노출 검사와 여섯 문항 실제 API 구조 검증 통과. 교육적 유효성·교사 검토는 미실시. |
+| 8. 배포·최종 확인 | deployed_ai_pending_retention | 2교시를 포함한 비공개 Sites 버전 2 배포는 유지 중. AI 코드는 실호출 검증을 통과했지만 제공자 비보관 적용 확인 전이라 배포 런타임에서는 비활성. |
 
 ## 이번 재개 작업의 구현
 
@@ -54,7 +54,8 @@ document_commit_policy: local_commits_and_sites_source_push_approved
 - `npm run lint`, `npm run typecheck`, `npm run build`: 통과.
 - 수정 1 당시 `npm run test:browser`: 8개 통과. 동일 8개를 빌드 산출물의 로컬 Worker 환경에서도 통과했다. 수정 2에서는 브라우저 테스트 사례만 확장하고 실행하지 않았다.
 - `node scripts/verify-build.mjs`: 공개 자산 16개, 화면용 공식 문제 자료와 검토 원본 일치, 공식 예시답안/키 설정의 브라우저 노출 없음.
-- `op run -- npm run test:openai`: 1Password의 개발용 키가 프로세스 메모리에만 주입되고 OpenAI까지 요청이 도달함을 확인. 현재 두 번의 첫 단계 합성 요청이 모두 `429 / insufficient_quota / credit_balance_exhausted`로 거절되어 성공한 모델 생성은 0회다.
+- `op run -- npm run test:openai`: 결제 반영 뒤 첫 문항의 2단계 실제 분석 성공. 입력 14,105·출력 388토큰, 7.2초.
+- `op run -- npm run test:openai -- --all`: 여섯 문항의 2단계 분석 12회가 모두 `verified_ai`로 성공. 입력 96,082·출력 3,135토큰, 문항별 5.1~9.0초. 캐시 할인을 제외한 비용 상한 약 $0.230.
 - 의존성 취약점 검사 0건. `git diff --check` 통과.
 - 현재 로컬 미리보기 `http://localhost:3000/` 유지. 개발 서버의 기존 exec 세션은 59842. 끊겼다면 정확한 URL 상태만 먼저 확인한 뒤 필요할 때 재실행한다.
 - 빌드 검증용 Worker 세션 51839 (`http://localhost:4173/`)는 검증 완료 후 종료했다.
@@ -66,15 +67,14 @@ document_commit_policy: local_commits_and_sites_source_push_approved
 
 ## 남은 외부 설정
 
-1. 제공자는 OpenAI, 검증 모델은 `gpt-5.6-terra`, 키는 1Password의 `OpenAI API` 항목 `credential` 필드로 확정했다. 평문 `.env.local`을 만들지 않고 `op run`으로 실행 프로세스에만 주입한다.
-2. API 조직에 선불 크레딧이 없어 현재 호출이 차단된다. 프로토타입 전략은 최소 $5만 충전하고 자동 충전을 끈 뒤, 가능하면 전용 프로젝트에 월 $5 하드 지출 한도와 $2/$4 알림을 두는 것이다. ChatGPT 구독과 API 결제는 별도다.
-3. OpenAI 사용 시 `store:false`만으로 외부 비보관이 보장되지 않는다. 실제 학생 답안을 받기 전 승인된 Zero Data Retention 또는 Modified Abuse Monitoring이 선택 프로젝트·모델에 적용되는지 확인해야 한다. 확인 전에는 배포의 `ANALYSIS_RETENTION_CONFIRMED=false`를 유지한다.
-4. Sites 배포용 커밋·푸시는 승인되어 있다. 후속 배포에서도 사이트의 소유자 전용 공개 범위를 유지하며 상위 GitHub 저장소는 푸시하지 않는다.
+1. 제공자는 OpenAI, 검증 모델은 `gpt-5.6-terra`, 키는 1Password의 `OpenAI API` 항목 `credential` 필드로 확정했다. 평문 `.env.local`을 만들지 않고 `op run`으로 실행 프로세스에만 주입한다. 최소 크레딧 설정과 실제 호출도 완료했다.
+2. 실제 학생 답안을 받기 전 승인된 Zero Data Retention 또는 Modified Abuse Monitoring이 선택 프로젝트에 적용되는지 확인해야 한다. `store:false`만으로 기본 최대 30일 남용 모니터링 로그의 내용 보관을 제거할 수 없다. 확인 전에는 배포의 `ANALYSIS_RETENTION_CONFIRMED=false`를 유지한다.
+3. Sites 배포용 소스 푸시는 승인되어 있다. 비보관 확인 뒤 런타임 비밀에 키·제공자·모델을 설정하고, 사이트의 소유자 전용 공개 범위를 재확인한 뒤 기존 프로젝트에 배포한다. 상위 GitHub 저장소는 푸시하지 않는다.
 
 ## 재개 순서
 
-1. OpenAI API 선불 크레딧과 프로젝트 하드 지출 한도를 확인한다. 이미 완료된 키 생성·1Password 저장·스캐폴딩·출처 추출은 반복하지 않는다.
-2. `op run -- npm run test:openai`, 이어서 `op run -- npm run test:openai -- --all`로 합성 답안의 한 문항과 여섯 문항을 검증한다. 필요 시 5~7단계 구현을 보정하고 전체 테스트를 다시 실행한다.
+1. OpenAI Platform의 설정 → 조직 → 데이터 제어 → 데이터 보관에서 해당 키의 프로젝트가 `zero_data_retention` 또는 `modified_abuse_monitoring`인지 확인한다. 일반 프로젝트 키로는 이 관리 상태를 조회할 수 없다.
+2. 확인되면 기존 Sites 프로젝트의 런타임 비밀에 키와 `ANALYSIS_PROVIDER=openai`, `ANALYSIS_MODEL=gpt-5.6-terra`, `ANALYSIS_RETENTION_CONFIRMED=true`를 설정한다.
 3. 교사가 실제 참여했다는 근거는 아직 없다. 검토 가능한 화면 구조와 실제 교육적 유효성은 구분한다. 검토 체크리스트는 검증 기록에 있다.
 4. 아래 기존 Sites 프로젝트와 버전·배포 정보를 재사용한다. `web/.openai/hosting.json`의 `project_id`를 유지하며 create_site를 다시 호출하지 않는다.
 5. 실제 원점 메타데이터, 호스팅 비저장·접근 제한, 안전한 런타임 설정을 확인한 소스로 빌드·정확한 소스 푸시·버전 저장·소유자 제한 배포·실제 왕복 검증을 수행한다.
@@ -85,6 +85,14 @@ document_commit_policy: local_commits_and_sites_source_push_approved
 `scripts/prepare-evaluation.mjs`에 사용자 제공 PDF 경로를 전달한다. 원본 SHA-256이 다르면 중지한다. 검토 원본, 서버 전용 평가 자료, 내부 해설·예시를 제외한 화면용 문제 자료를 함께 생성하므로 기존 검토와 원본 해시를 먼저 확인한다.
 
 ## 세션 기록
+
+### 2026-09-21 — 여섯 문항 OpenAI 실제 분석 통과
+
+- 사용자가 API 결제를 설정한 뒤 같은 1Password secret reference와 `op run`으로 한 문항 스모크 테스트를 재실행했다. 2회 요청이 `verified_ai`로 성공했고 입력 14,105·출력 388토큰, 7.2초가 걸렸다.
+- 이어서 여섯 문항 고정 합성 답안을 실제 `gpt-5.6-terra`로 분석했다. 후보·독립 검토의 12회 요청이 모두 성공했고 입력 96,082·출력 3,135토큰을 사용했다. 문항별 시간은 5.1~9.0초로 서버 제한 55초 안이었다.
+- 여섯 문항의 검증 확정 기준 수는 차례로 1/3, 1/3, 2/4, 2/4, 3/3, 3/4였다. 두 단계가 일치하지 않는 판단을 `확인 필요`로 보류하는 보수적 설계가 실제 모델에서도 동작했다. 각 문항의 우선 수정 과제는 1개였다.
+- 이번 결제 후 검증의 비용 상한은 캐시 할인 전 약 $0.263이다. 응답 본문·합성 답안·키는 로그나 문서에 남기지 않았다.
+- 배포 런타임은 변경하지 않았다. 실제 학생 답안 전송 전 프로젝트의 Zero Data Retention 또는 Modified Abuse Monitoring 적용을 확인해야 하므로 `ANALYSIS_RETENTION_CONFIRMED=false`를 유지한다.
 
 ### 2026-09-15 — 1Password 기반 OpenAI 실연결 시도
 
