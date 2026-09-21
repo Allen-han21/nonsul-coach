@@ -9,11 +9,19 @@ export type OpenAIUsage = {
   outputTokens: number;
   totalTokens: number;
 };
+export type OpenAIProviderError = {
+  status: number;
+  type?: string;
+  code?: string;
+  param?: string;
+  message?: string;
+};
 export function createOpenAIProvider(
   config: {
     apiKey: string;
     model: string;
     onUsage?: (usage: OpenAIUsage) => void;
+    onProviderError?: (error: OpenAIProviderError) => void;
   },
   transport: typeof fetch = fetch,
 ): AnalysisProvider {
@@ -25,7 +33,9 @@ export function createOpenAIProvider(
       try {
         response = await transport('https://api.openai.com/v1/responses', {
           method: 'POST',
-          redirect: 'error',
+          // Workers supports manual/follow only. Manual also prevents forwarding
+          // the Authorization header if an upstream redirect is ever returned.
+          redirect: 'manual',
           signal: request.signal,
           headers: {
             Authorization: `Bearer ${config.apiKey}`,
@@ -51,12 +61,59 @@ export function createOpenAIProvider(
             },
           }),
         });
-      } catch {
+      } catch (error) {
+        if (config.onProviderError) {
+          const value = error as {
+            name?: unknown;
+            code?: unknown;
+            message?: unknown;
+            cause?: { code?: unknown; message?: unknown };
+          };
+          const diagnostic: OpenAIProviderError = {
+            status: 0,
+            type:
+              typeof value?.name === 'string' ? value.name : 'transport_error',
+          };
+          const code = value?.cause?.code ?? value?.code;
+          if (typeof code === 'string') diagnostic.code = code;
+          const message = value?.cause?.message ?? value?.message;
+          if (typeof message === 'string')
+            diagnostic.message = message
+              .replaceAll(config.apiKey, '[redacted]')
+              .replace(/sk-(?:proj-|admin-)?[A-Za-z0-9_-]+/g, '[redacted]')
+              .slice(0, 240);
+          try {
+            config.onProviderError(diagnostic);
+          } catch {
+            // Optional diagnostics must never affect failure handling.
+          }
+        }
         throw new AnalysisError(
           request.signal.aborted ? 'TIMEOUT' : 'PROVIDER_FAILED',
         );
       }
       if (!response.ok) {
+        if (config.onProviderError) {
+          const diagnostic: OpenAIProviderError = { status: response.status };
+          try {
+            const payload = JSON.parse(
+              await readBoundedText(response.clone(), 8_192),
+            );
+            if (typeof payload?.error?.type === 'string')
+              diagnostic.type = payload.error.type;
+            if (typeof payload?.error?.code === 'string')
+              diagnostic.code = payload.error.code;
+            if (typeof payload?.error?.param === 'string')
+              diagnostic.param = payload.error.param;
+          } catch {
+            // The status is sufficient when no bounded JSON error is available.
+          }
+          try {
+            config.onProviderError(diagnostic);
+          } catch {
+            // Optional diagnostics must never affect failure handling.
+          }
+        }
         await response.body?.cancel();
         throw new AnalysisError('PROVIDER_FAILED');
       }

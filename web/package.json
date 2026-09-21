@@ -8,6 +8,7 @@
   "scripts": {
     "test": "tsx --test tests/*.test.ts",
     "test:openai": "tsx scripts/verify-openai.ts",
+    "test:local-ui": "tsx scripts/verify-local-ui.ts",
     "test:browser": "playwright test",
     "typecheck": "tsc --noEmit",
     "dev": "vinext dev",

@@ -236,11 +236,15 @@ void test('OpenAI adapter is opt-in and non-persistent; refuses incomplete/refus
     /NOT_CONFIGURED/,
   );
   let usage: unknown;
+  let providerError: unknown;
   const config = {
     apiKey: 'fake-test-key',
     model: 'operator-selected',
     onUsage: (value: unknown) => {
       usage = value;
+    },
+    onProviderError: (value: unknown) => {
+      providerError = value;
     },
   };
   const request: ModelRequest = {
@@ -252,6 +256,7 @@ void test('OpenAI adapter is opt-in and non-persistent; refuses incomplete/refus
   };
   const adapter = createOpenAIProvider(config, async (url, init) => {
     assert.equal(url, 'https://api.openai.com/v1/responses');
+    assert.equal(init?.redirect, 'manual');
     const body = JSON.parse(init!.body as string);
     assert.equal(body.store, false);
     assert.equal(body.background, false);
@@ -297,12 +302,44 @@ void test('OpenAI adapter is opt-in and non-persistent; refuses incomplete/refus
     );
   }
   await assert.rejects(
-    createOpenAIProvider(
-      config,
-      async () => new Response('private upstream body', { status: 500 }),
+    createOpenAIProvider(config, async () =>
+      Response.json(
+        {
+          error: {
+            type: 'invalid_request_error',
+            code: 'safe_test_code',
+            param: 'safe_test_param',
+            message: 'private upstream body',
+          },
+        },
+        { status: 500 },
+      ),
     ).generate(request),
     /PROVIDER_FAILED/,
   );
+  assert.deepEqual(providerError, {
+    status: 500,
+    type: 'invalid_request_error',
+    code: 'safe_test_code',
+    param: 'safe_test_param',
+  });
+  await assert.rejects(
+    createOpenAIProvider(config, async () => {
+      throw Object.assign(new TypeError('private fake-test-key message'), {
+        cause: {
+          code: 'SAFE_TRANSPORT_CODE',
+          message: 'cause contains fake-test-key value',
+        },
+      });
+    }).generate(request),
+    /PROVIDER_FAILED/,
+  );
+  assert.deepEqual(providerError, {
+    status: 0,
+    type: 'TypeError',
+    code: 'SAFE_TRANSPORT_CODE',
+    message: 'cause contains [redacted] value',
+  });
 });
 void test('official example sentences and model-authored prose are never emitted as coaching text', async () => {
   const compact = (s: string) =>

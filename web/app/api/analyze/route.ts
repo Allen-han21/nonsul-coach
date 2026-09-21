@@ -7,6 +7,7 @@ export async function POST(request: Request) {
     apiKey: process.env.OPENAI_API_KEY,
     model: process.env.ANALYSIS_MODEL,
     retentionConfirmed: process.env.ANALYSIS_RETENTION_CONFIRMED,
+    safeDiagnostics: process.env.ANALYSIS_SAFE_DIAGNOSTICS,
     siteOrigin: process.env.SITE_ORIGIN,
   });
 }

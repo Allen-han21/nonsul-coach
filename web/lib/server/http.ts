@@ -8,6 +8,7 @@ export type RuntimeConfig = {
   apiKey?: string;
   model?: string;
   retentionConfirmed?: string;
+  safeDiagnostics?: string;
   siteOrigin?: string;
 };
 export const errorMessages = {
@@ -44,6 +45,10 @@ export function configuredProvider(config: RuntimeConfig): AnalysisProvider {
   return createOpenAIProvider({
     apiKey: config.apiKey,
     model: config.model,
+    onProviderError:
+      config.safeDiagnostics === 'true'
+        ? (error) => console.error(JSON.stringify({ openai: error }))
+        : undefined,
   });
 }
 // Factory injection is used by isolated tests only. No test mode or fake-provider environment switch exists.

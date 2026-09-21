@@ -57,6 +57,7 @@ document_commit_policy: local_commits_and_sites_source_push_approved
 - `op run -- npm run test:openai`: 결제 반영 뒤 첫 문항의 2단계 실제 분석 성공. 입력 14,105·출력 388토큰, 7.2초.
 - `op run -- npm run test:openai -- --all`: 여섯 문항의 2단계 분석 12회가 모두 `verified_ai`로 성공. 입력 96,082·출력 3,135토큰, 문항별 5.1~9.0초. 캐시 할인을 제외한 비용 상한 약 $0.230.
 - `op run -- npm run test:openai -- --scenarios`: 누락·프롬프트 주입·수정 답안의 2단계 분석 6회 성공. 앞의 두 사례는 확정 판단 0개로 보류하고 수정 답안만 2/3개 기준을 확정했다. 입력 41,916·출력 791토큰, 비용 상한 약 $0.093.
+- `npm run test:local-ui`: `op run`으로 시작한 로컬 Worker에서 화면 입력→실제 OpenAI 2단계 분석→피드백 렌더링 왕복 성공. HTTP 200, 요구사항 카드 4개, 기준 카드 3개, 우선 과제 1개, 포커스 이동, 콘솔 오류 0개 확인.
 - 의존성 취약점 검사 0건. `git diff --check` 통과.
 - 현재 로컬 미리보기 `http://localhost:3000/` 유지. 개발 서버의 기존 exec 세션은 59842. 끊겼다면 정확한 URL 상태만 먼저 확인한 뒤 필요할 때 재실행한다.
 - 빌드 검증용 Worker 세션 51839 (`http://localhost:4173/`)는 검증 완료 후 종료했다.
@@ -96,6 +97,16 @@ document_commit_policy: local_commits_and_sites_source_push_approved
 - 누락 답안, 평가 기준 변경을 지시하는 프롬프트 주입형 답안, 수정 답안도 추가 검증했다. 6회 요청 모두 완료됐으며 확정 기준 수는 각각 0/3, 0/3, 2/3이었다. 앞의 두 사례를 임의로 확정하지 않았고 각 사례의 우선 과제는 규칙 검사 1개뿐이었다.
 - 추가 시나리오는 입력 41,916·출력 791토큰을 사용했다. 결제 후 모든 실검증 누계는 입력 152,103·출력 4,314토큰, 비용 상한 약 $0.356이다.
 - 배포 런타임은 변경하지 않았다. 실제 학생 답안 전송 전 프로젝트의 Zero Data Retention 또는 Modified Abuse Monitoring 적용을 확인해야 하므로 `ANALYSIS_RETENTION_CONFIRMED=false`를 유지한다.
+
+### 2026-09-21 — 로컬호스트 실제 피드백 왕복
+
+- Cloudflare Vite 개발 Worker가 부모 셸 변수를 자동 상속하지 않아 첫 요청이 `NOT_CONFIGURED`로 차단되는 것을 확인했다. `vite.config.ts`에서 분석 서버 변수만 허용 목록으로 Worker에 전달하도록 수정했다. 값은 1Password `op run` 프로세스에만 존재하고 파일에는 저장하지 않는다.
+- OpenAI 어댑터의 `redirect: error`가 Cloudflare Workers에서 지원되지 않아 요청 전 `TypeError`가 발생했다. `redirect: manual`로 변경해 Workers 호환성을 확보하고, 3xx를 비성공 응답으로 직접 거부하여 Authorization 헤더가 다른 원점으로 전달되지 않게 했다.
+- 로컬 진단은 명시적으로 켠 경우에만 상태·오류 유형·코드와 키가 마스킹된 전송 오류 문구를 남긴다. 요청·응답 본문, 답안, 키 값은 기록하지 않는다.
+- 셸 변수 전달은 Vite의 개발 서버 명령에만 적용한다. 가짜 키 표식을 설정한 운영 빌드 후 `dist` 전체에 표식이 없음을 확인했으며, 공개 자산 경계 검사도 통과했다.
+- 합성 답안의 실제 `/api/analyze` 호출은 HTTP 200, `verified_ai`, `Cache-Control: no-store, private, max-age=0`을 반환했다. 모든 근거 위치가 원문과 일치했다.
+- 격리 Chromium 화면 왕복은 피드백 영역 표시, 요구사항 카드 4개, 대학 기준 카드 3개, 우선 과제 1개, `feedback-title` 포커스, 콘솔 오류 0개를 확인했다. 키가 주입된 개발 서버는 검증 직후 종료했다.
+- 이 확인은 합성 답안 전용 로컬 검증이다. 배포 runtime revision 2와 `ANALYSIS_RETENTION_CONFIRMED=false`, 소유자 전용 접근 정책은 변경하지 않았다.
 
 ### 2026-09-15 — 1Password 기반 OpenAI 실연결 시도
 
